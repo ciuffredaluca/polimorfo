@@ -1,9 +1,16 @@
-from polimorfo.utils.mergeutils import merge_datasets, get_img_meta_by_name
-from polimorfo.datasets import CocoDataset
 from pathlib import Path
+
 import numpy as np
+from pytest import fixture
+
+from polimorfo.datasets import CocoDataset
+from polimorfo.utils.mergeutils import get_img_meta_by_name, merge_datasets
 
 BASE_PATH = Path(__file__).parent.parent / 'data'
+
+@fixture
+def dataset_file():
+    return BASE_PATH / 'hair_drier_toaster_bear.json'
 
 def test_merge_datasets():
 
@@ -42,3 +49,39 @@ def test_merge_datasets():
             areas = { a['area'] for a in anns }
             assert merged_areas == areas
         
+def test_self_merge():
+    f = BASE_PATH / 'dataset1.json'
+    coco = CocoDataset(f)
+    len_imgs_before = len(coco.imgs)
+    len_anns_before = len(coco.anns)
+    len_cats_before = len(coco.cats)
+    print(len_anns_before)
+    coco = merge_datasets([coco for _ in range(3)], BASE_PATH / 'fake_merge.json')
+    assert len(coco.imgs) == len_imgs_before #1 loop returns 10 imgs, 2 loop returns 20, 3 loop returns 40
+    assert len(coco.anns) == 3 * len_anns_before
+    assert len(coco.cats) == len_cats_before
+
+def test_merge_2_datasets():
+    f1 = BASE_PATH / 'dataset1.json'
+    f2 = BASE_PATH / 'dataset2.json'
+    coco = CocoDataset(f1)
+    coco2 = CocoDataset(f2)
+    len_imgs_before = len(coco.imgs)
+    len_anns_before = len(coco.anns)
+    len_cats_before = len(coco.cats)
+    coco = merge_datasets([coco, coco2], BASE_PATH / 'fake_merge.json')
+    assert len(coco.imgs) == len_imgs_before + len(coco2.imgs)
+    assert len(coco.anns) == len_anns_before + len(coco2.anns)
+    assert len(coco.cats) == len_cats_before
+
+def test_merge_heterogenius_datasets(dataset_file):
+    f1 = BASE_PATH / 'dataset1.json'
+    coco = CocoDataset(f1)
+    coco2 = CocoDataset(dataset_file)
+    len_imgs_before = len(coco.imgs)
+    len_anns_before = len(coco.anns)
+    len_cats_before = len(coco.cats)
+    coco = merge_datasets([coco, coco2], BASE_PATH / 'fake_merge.json')
+    assert len(coco.imgs) == len_imgs_before + len(coco2.imgs)
+    assert len(coco.anns) == len_anns_before + len(coco2.anns)
+    assert len(coco.cats) == len_cats_before + len(coco2.cats)
